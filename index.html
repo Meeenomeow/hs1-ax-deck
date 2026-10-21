@@ -1,0 +1,1877 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AX 성과 진단 기획 발표</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Broadside fonts: Barlow (the workhorse grotesque), IBM Plex Mono (chrome),
+         Noto Sans SC (CJK fallback for all roles) -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;700;800;900&family=IBM+Plex+Mono:wght@300;400;500&family=Noto+Sans+SC:wght@400;500;700;900&display=swap"
+      rel="stylesheet"
+    />
+
+    <style>
+      /* ╔══════════════════════════════════════════════════════════════════════╗
+   ║  ZONE A · TOKENS                                                     ║
+   ║                                                                      ║
+   ║  This is the ONLY block you replace to change the visual style.      ║
+   ║  Every color, font, and size in this file reads from these vars.     ║
+   ║  Never write raw hex values, font names, or px sizes outside here.   ║
+   ╚══════════════════════════════════════════════════════════════════════╝ */
+      :root {
+        /* ── Palette ──────────────────────────────────────────────────────── */
+        --c-bg: #111111; /* near-black — the default slide background  */
+        --c-bg-alt: #1a1a18; /* secondary surface on dark slides            */
+
+        /* Broadside has NO light slides. These vars are overridden to dark
+           so any accidental .light class still renders dark. */
+        --c-bg-light: #111111;
+        --c-bg-light-alt: #1a1a18;
+
+        /* The signature: orange is not an accent here — it is the ENVIRONMENT.
+           Cover and chapter slides use this as their full background fill. */
+        --c-bg-orange: #e85d26;
+
+        --c-fg: #f0ece5; /* primary text on dark slides                 */
+        --c-fg-2: #888880; /* secondary / muted text on dark              */
+        --c-fg-3: #505048; /* tertiary / hint text on dark                */
+
+        /* Text colours for orange slides — ink on fire */
+        --c-fg-light: #111111; /* primary text on orange                */
+        --c-fg-light-2: #2a1810; /* muted text on orange                  */
+        --c-fg-light-3: rgba(
+          17,
+          17,
+          17,
+          0.55
+        ); /* hint text on orange               */
+
+        --c-accent: #e85d26; /* orange = accent everywhere on dark slides   */
+        --c-border: #282826; /* divider lines on dark slides                */
+        --c-border-light: #282826; /* same dark border even on "light" (overridden)*/
+
+        /* ── Typography ──────────────────────────────────────────────────── */
+        /* Barlow: the defining typeface. Condensed grotesque. Always heavy.
+           Used at max weight — 900 for display, 800 for h1, 700 for h2.
+           Noto Sans SC provides full CJK coverage at matching weights. */
+        --f-display: "Barlow", "Noto Sans SC", sans-serif;
+        --f-heading: "Barlow", "Noto Sans SC", sans-serif;
+        --f-body: "Barlow", "Noto Sans SC", system-ui, sans-serif;
+        /* Mono: IBM Plex Mono for chrome labels, metadata, slide numbers */
+        --f-mono: "IBM Plex Mono", monospace;
+
+        /* ── Type Scale ───────────────────────────────────────────────────── */
+        /* Broadside's defining trait: TYPE IS MASSIVE. Display is 13vw —
+           on a 1440px screen that is ~187px. Words become graphic elements. */
+        --sz-display: 13vw; /* the whole point — nearly abstract at full size */
+        --sz-h1: 7.5vw; /* chapter title — still enormous                */
+        --sz-h2: 4.5vw; /* slide headline                                */
+        --sz-h3: 2.8vw; /* sub-headline                                  */
+        --sz-lead: 1.6vw; /* lead paragraph                                */
+        --sz-body: 1.2vw; /* body text                                     */
+        --sz-caption: 0.9vw; /* captions, footnotes                           */
+        --sz-label: 0.72vw; /* chrome labels, slide numbers, metadata        */
+
+        /* ── Spacing ─────────────────────────────────────────────────────── */
+        --pad-x: 5.5vw; /* tighter than skeleton — type fills the space  */
+        --pad-y: 5.5vh;
+        --gap-lg: 3.5vh;
+        --gap-md: 2vh;
+        --gap-sm: 1vh;
+
+        /* ── Motion ──────────────────────────────────────────────────────── */
+        --ease-slide: cubic-bezier(0.77, 0, 0.175, 1);
+        --dur-slide: 0.8s;
+        --ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
+        --dur-enter: 0.5s;
+      }
+
+      /* ╔══════════════════════════════════════════════════════════════════════╗
+   ║  ZONE B · ENGINE — DO NOT MODIFY                                     ║
+   ║                                                                      ║
+   ║  Layout engine, transitions, animation system, navigation.           ║
+   ║  Touching this breaks the mechanics.                                 ║
+   ╚══════════════════════════════════════════════════════════════════════╝ */
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: var(--c-bg);
+        -webkit-font-smoothing: antialiased;
+      }
+
+      /* Deck container — all slides sit side by side */
+      #deck {
+        display: flex;
+        height: 100vh;
+        /* Width = N * 100vw, set dynamically by JS */
+        transition: transform var(--dur-slide) var(--ease-slide);
+        will-change: transform;
+      }
+
+      /* Slide base — each slide is one full viewport */
+      .slide {
+        flex: 0 0 100vw;
+        width: 100vw;
+        height: 100vh;
+        position: relative;
+        padding: var(--pad-y) var(--pad-x);
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        overflow: hidden;
+      }
+      /* Prevent grid children from overflowing */
+      .slide-body {
+        min-height: 0;
+      }
+
+      /* Slide themes */
+      .slide.dark {
+        background: var(--c-bg);
+        color: var(--c-fg);
+      }
+      /* Broadside: .light is overridden to dark — there are no cream/white slides */
+      .slide.light {
+        background: var(--c-bg-light);
+        color: var(--c-fg);
+      }
+      /* The orange theme — the signature Broadside treatment */
+      .slide.orange {
+        background: var(--c-bg-orange);
+        color: var(--c-fg-light);
+      }
+
+      /* ── Animation system ──────────────────────────────────────────────── */
+      /* All data-anim elements start invisible.
+   They animate when their parent slide receives .is-active.
+   JS resets animations before adding .is-active so re-visiting a slide re-plays them. */
+
+      [data-anim] {
+        opacity: 0;
+      }
+
+      .slide.is-active [data-anim] {
+        animation-duration: var(--dur-enter);
+        animation-timing-function: var(--ease-enter);
+        animation-fill-mode: forwards;
+      }
+      .slide.is-active [data-anim="fade-up"] {
+        animation-name: kFadeUp;
+      }
+      .slide.is-active [data-anim="fade-in"] {
+        animation-name: kFadeIn;
+      }
+      .slide.is-active [data-anim="reveal-right"] {
+        animation-name: kRevealRight;
+      }
+      .slide.is-active [data-anim="reveal-left"] {
+        animation-name: kRevealLeft;
+      }
+      .slide.is-active [data-anim="scale-in"] {
+        animation-name: kScaleIn;
+      }
+
+      /* Stagger delays — add data-delay="N" to offset each element */
+      [data-delay="0"] {
+        animation-delay: 0s;
+      }
+      [data-delay="1"] {
+        animation-delay: 0.08s;
+      }
+      [data-delay="2"] {
+        animation-delay: 0.18s;
+      }
+      [data-delay="3"] {
+        animation-delay: 0.3s;
+      }
+      [data-delay="4"] {
+        animation-delay: 0.44s;
+      }
+      [data-delay="5"] {
+        animation-delay: 0.6s;
+      }
+      [data-delay="6"] {
+        animation-delay: 0.78s;
+      }
+
+      @keyframes kFadeUp {
+        from {
+          opacity: 0;
+          transform: translateY(28px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+      @keyframes kFadeIn {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+      @keyframes kRevealRight {
+        from {
+          clip-path: inset(0 100% 0 0);
+          opacity: 1;
+        }
+        to {
+          clip-path: inset(0 0% 0 0);
+          opacity: 1;
+        }
+      }
+      @keyframes kRevealLeft {
+        from {
+          clip-path: inset(0 0 0 100%);
+          opacity: 1;
+        }
+        to {
+          clip-path: inset(0 0 0 0%);
+          opacity: 1;
+        }
+      }
+      @keyframes kScaleIn {
+        from {
+          opacity: 0;
+          transform: scale(0.94);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+
+      /* ── Navigation ───────────────────────────────────────────────────── */
+      #nav-dots {
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 7px;
+        z-index: 100;
+      }
+      .nav-dot {
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        border: none;
+        background: rgba(255, 255, 255, 0.22);
+        cursor: pointer;
+        transition:
+          background 0.3s,
+          transform 0.3s;
+        padding: 0;
+      }
+      .nav-dot.is-active {
+        background: rgba(255, 255, 255, 0.8);
+        transform: scale(1.4);
+      }
+
+      #slide-counter {
+        position: fixed;
+        bottom: 20px;
+        right: 28px;
+        font-family: var(--f-mono), 'Pretendard Variable';
+        font-size: 10px;
+        letter-spacing: 0.12em;
+        color: rgba(255, 255, 255, 0.25);
+        z-index: 100;
+        user-select: none;
+      }
+
+      /* ╔══════════════════════════════════════════════════════════════════════╗
+   ║  ZONE C · TYPOGRAPHY                                                 ║
+   ║                                                                      ║
+   ║  Use only these classes for text. Never set font-family, font-size,  ║
+   ║  or color inline. Exception: overriding size via                     ║
+   ║  style="--sz-h2: 2.5vw" is OK — it stays within the token system.   ║
+   ╚══════════════════════════════════════════════════════════════════════╝ */
+
+      /* Base typographic classes — all font families read from tokens */
+      .display {
+        font-family: var(--f-display), 'Pretendard Variable';
+        font-size: var(--sz-display);
+        /* Broadside: maximum weight. Lowercase is the aesthetic — NOT uppercase. */
+        font-weight: 900;
+        line-height: 0.88;
+        letter-spacing: -0.04em;
+      }
+      .h1 {
+        font-family: var(--f-heading), 'Pretendard Variable';
+        font-size: var(--sz-h1);
+        font-weight: 800;
+        line-height: 0.9;
+        letter-spacing: -0.03em;
+      }
+      .h2 {
+        font-family: var(--f-heading), 'Pretendard Variable';
+        font-size: var(--sz-h2);
+        font-weight: 700;
+        line-height: 1.1;
+        letter-spacing: -0.02em;
+      }
+      .h3 {
+        font-family: var(--f-heading), 'Pretendard Variable';
+        font-size: var(--sz-h3);
+        font-weight: 600;
+        line-height: 1.2;
+      }
+      .lead {
+        font-family: var(--f-body), 'Pretendard Variable';
+        font-size: var(--sz-lead);
+        font-weight: 400;
+        line-height: 1.5;
+      }
+      .body {
+        font-family: var(--f-body), 'Pretendard Variable';
+        font-size: var(--sz-body);
+        font-weight: 400;
+        line-height: 1.6;
+      }
+      .caption {
+        font-family: var(--f-body), 'Pretendard Variable';
+        font-size: var(--sz-caption);
+        font-weight: 400;
+        line-height: 1.5;
+      }
+      .label {
+        font-family: var(--f-mono), 'Pretendard Variable';
+        font-size: var(--sz-label);
+        font-weight: 500;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      /* Contextual color helpers — reads from active slide theme */
+      .dark .muted {
+        color: var(--c-fg-2);
+      }
+      .light .muted {
+        color: var(--c-fg-2);
+      } /* light = dark in Broadside */
+      /* On orange slides: muted text is dark ink at reduced opacity */
+      .orange .muted {
+        color: var(--c-fg-light-2);
+      }
+
+      /* The orange accent colour — used for emphasis on dark slides */
+      .accent {
+        color: var(--c-accent);
+      }
+
+      /* ── Orange slide text overrides ────────────────────────────────────── */
+      /* On orange slides, display/heading text is near-black (ink on fire).
+         This is the protest-poster aesthetic: dark ink on vivid ground. */
+      .orange .display,
+      .orange .h1,
+      .orange .h2,
+      .orange .h3 {
+        color: #111111;
+      }
+      .orange .lead,
+      .orange .body {
+        color: rgba(17, 17, 17, 0.75);
+      }
+      .orange .label {
+        color: rgba(17, 17, 17, 0.55);
+      }
+      /* On orange, .accent still means "the contrast pop" — use sparingly */
+      .orange .accent {
+        color: #111111;
+      }
+
+      /* ╔══════════════════════════════════════════════════════════════════════╗
+   ║  ZONE D · CHROME                                                     ║
+   ║                                                                      ║
+   ║  Header + footer present on slides that show them.                   ║
+   ║  Cover, chapter, quote, and end slides suppress both.                ║
+   ╚══════════════════════════════════════════════════════════════════════╝ */
+
+      .slide-chrome,
+      .slide-foot {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .slide-chrome {
+        padding-bottom: var(--gap-sm);
+        border-bottom: 1px solid var(--c-border);
+        margin-bottom: var(--gap-md);
+      }
+      .slide-foot {
+        padding-top: var(--gap-sm);
+        border-top: 1px solid var(--c-border);
+        margin-top: var(--gap-md);
+      }
+
+      /* On orange slides, chrome borders use dark ink at low opacity */
+      .orange .slide-chrome,
+      .orange .slide-foot {
+        border-color: rgba(17, 17, 17, 0.2);
+      }
+
+      /* Slides that suppress chrome/foot entirely */
+      .slide--cover .slide-chrome,
+      .slide--cover .slide-foot,
+      .slide--chapter .slide-chrome,
+      .slide--chapter .slide-foot,
+      .slide--quote .slide-chrome,
+      .slide--quote .slide-foot,
+      .slide--end .slide-chrome,
+      .slide--end .slide-foot {
+        display: none;
+      }
+
+      /* ╔══════════════════════════════════════════════════════════════════════╗
+   ║  ZONE E · LAYOUT PATTERNS                                            ║
+   ║                                                                      ║
+   ║  9 slide types. Use the class names below — do not invent new ones.  ║
+   ║  Broadside note: .slide--cover and .slide--chapter use .orange       ║
+   ║  (not .dark or .light). Dark slides use .dark.                       ║
+   ╚══════════════════════════════════════════════════════════════════════╝ */
+
+      /* ── 1. COVER ─────────────────────────────────────────────────────── */
+      /* Title slide. Always orange in Broadside. The broadside-num sits
+         top-left like a catalogue number. Title fills most of the slide. */
+      .slide--cover {
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+      }
+      .cover-body {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        justify-content: flex-end;
+        gap: var(--gap-md);
+      }
+      .cover-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        margin-top: var(--gap-lg);
+        padding-top: var(--gap-sm);
+        border-top: 1px solid rgba(17, 17, 17, 0.2);
+      }
+
+      /* ── 2. CHAPTER ───────────────────────────────────────────────────── */
+      /* Section divider. Always orange in Broadside.
+         Big weight-900 title, no chrome, maximum negative space. */
+      .slide--chapter {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 0;
+      }
+      .chapter-num {
+        font-family: var(--f-mono), 'Pretendard Variable';
+        font-size: var(--sz-label);
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        /* On orange: dark ink; on dark: orange accent */
+        color: rgba(17, 17, 17, 0.55);
+        margin-bottom: var(--gap-md);
+      }
+      /* On dark chapter slides the number gets orange accent */
+      .dark .chapter-num {
+        color: var(--c-accent);
+      }
+      .chapter-rule {
+        width: 36px;
+        height: 2px;
+        background: #111111; /* dark rule on orange */
+        margin-bottom: var(--gap-md);
+      }
+      .dark .chapter-rule {
+        background: var(--c-accent);
+      }
+
+      /* ── 3. STATEMENT ─────────────────────────────────────────────────── */
+      /* Single bold claim. No image. The dark counterpart to the orange covers.
+         4-8 words max. Let the type breathe. */
+      .slide--statement .statement-body {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: var(--gap-md);
+      }
+
+      /* ── 4. SPLIT ─────────────────────────────────────────────────────── */
+      /* Left: text content. Right: image. Dark background.
+         Orange kicker/rule above the headline. */
+      .slide--split .slide-body {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: calc(var(--pad-x) * 0.7);
+        align-items: center;
+      }
+      .split-text {
+        display: flex;
+        flex-direction: column;
+        gap: var(--gap-md);
+      }
+      .split-image {
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        gap: var(--gap-sm);
+      }
+      /* Always explicit height in vh to prevent overflow on different screens */
+      .split-image img {
+        width: 100%;
+        height: 55vh;
+        object-fit: cover;
+        display: block;
+      }
+      /* Placeholder shown when no real image is wired up. Same footprint
+         as a real <img> so the surrounding layout stays unchanged. */
+      .img-placeholder {
+        width: 100%;
+        height: 55vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px dashed var(--c-border);
+        font-family: var(--font-mono, , 'Pretendard Variable'"IBM Plex Mono", monospace);
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: var(--c-fg-2, var(--c-fg));
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      /* ── 5. STATS ─────────────────────────────────────────────────────── */
+      /* 3 or 4 large data cards. Add .cols-4 to .stats-grid for 4 columns. */
+      .slide--stats .slide-body {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: var(--gap-lg);
+      }
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0;
+      }
+      .stats-grid.cols-4 {
+        grid-template-columns: repeat(4, 1fr);
+      }
+      .stat-card {
+        display: flex;
+        flex-direction: column;
+        gap: var(--gap-sm);
+        padding: var(--gap-md) var(--gap-md) var(--gap-md) 0;
+        border-top: 1px solid var(--c-border);
+      }
+      /* The big number — orange on dark slides */
+      .stat-value {
+        font-family: var(--f-display), 'Pretendard Variable';
+        font-size: 5.5vw;
+        font-weight: 900;
+        line-height: 1;
+        color: var(--c-accent);
+        letter-spacing: -0.04em;
+      }
+      .stat-label {
+        font-family: var(--f-body), 'Pretendard Variable';
+        font-size: var(--sz-body);
+        line-height: 1.5;
+      }
+      .stat-note {
+        font-family: var(--f-mono), 'Pretendard Variable';
+        font-size: var(--sz-caption);
+        letter-spacing: 0.05em;
+        color: var(--c-fg-3);
+      }
+
+      /* ── 6. QUOTE ─────────────────────────────────────────────────────── */
+      /* Full-slide pull quote. Dark background. Orange opening mark. */
+      .slide--quote {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: calc(var(--pad-y) * 1.2) calc(var(--pad-x) * 1.1);
+      }
+      .quote-mark {
+        font-family: var(--f-display), 'Pretendard Variable';
+        font-size: 10vw;
+        line-height: 0.6;
+        color: var(--c-accent);
+        margin-bottom: var(--gap-md);
+        font-weight: 900;
+      }
+      .quote-text {
+        font-family: var(--f-display), 'Pretendard Variable';
+        font-size: 3.8vw;
+        font-weight: 700;
+        line-height: 1.15;
+        letter-spacing: -0.02em;
+        max-width: 78%;
+        margin-bottom: var(--gap-lg);
+      }
+      .quote-attr {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4vh;
+      }
+
+      /* ── 7. LIST ──────────────────────────────────────────────────────── */
+      /* Headline left, bullets right. Max 3 bullets in Broadside — this style
+         prizes density of impact over density of information. */
+      .slide--list .slide-body {
+        display: grid;
+        grid-template-columns: 2fr 3fr;
+        gap: calc(var(--pad-x) * 0.8);
+        align-items: center;
+      }
+      .list-head {
+        display: flex;
+        flex-direction: column;
+        gap: var(--gap-md);
+        padding-top: var(--gap-sm);
+      }
+      .bullet-list {
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+        gap: var(--gap-md);
+      }
+      .bullet-list li {
+        display: grid;
+        grid-template-columns: 1.2em 1fr;
+        gap: 0.5em;
+        font-family: var(--f-body), 'Pretendard Variable';
+        font-size: var(--sz-lead);
+        font-weight: 500;
+        line-height: 1.4;
+      }
+      /* Orange dash marker */
+      .bullet-list li::before {
+        content: "/";
+        color: var(--c-accent);
+        font-family: var(--f-mono), 'Pretendard Variable';
+        font-weight: 700;
+      }
+      .dark .bullet-list li {
+        color: var(--c-fg);
+      }
+      .light .bullet-list li {
+        color: var(--c-fg);
+      }
+
+      /* ── 8. COMPARE ───────────────────────────────────────────────────── */
+      /* Side-by-side before/after or A vs B. Orange "after" label. */
+      .slide--compare .slide-body {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        height: 100%;
+      }
+      .compare-panel {
+        display: flex;
+        flex-direction: column;
+        gap: var(--gap-md);
+        padding: var(--gap-md) 0;
+      }
+      .compare-panel.left {
+        padding-right: calc(var(--pad-x) * 0.55);
+        border-right: 1px solid var(--c-border);
+      }
+      .compare-panel.right {
+        padding-left: calc(var(--pad-x) * 0.55);
+      }
+      .compare-label {
+        font-family: var(--f-mono), 'Pretendard Variable';
+        font-size: var(--sz-label);
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        padding-bottom: var(--gap-sm);
+        border-bottom: 1px solid var(--c-border);
+        color: var(--c-fg-2);
+      }
+      /* The "after" panel uses orange — the payoff */
+      .compare-label.after {
+        color: var(--c-accent);
+        border-color: var(--c-accent);
+      }
+
+      /* ── 9. END ───────────────────────────────────────────────────────── */
+      /* Closing slide. Dark background. Massive closing headline. No chrome. */
+      .slide--end {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: var(--gap-md);
+      }
+
+      /* ╔══════════════════════════════════════════════════════════════════════╗
+   ║  ZONE F · COMPONENTS                                                 ║
+   ║                                                                      ║
+   ║  Reusable pieces used across multiple layouts.                       ║
+   ╚══════════════════════════════════════════════════════════════════════╝ */
+
+      /* Accent rule — orange on dark, dark-ink on orange */
+      .rule {
+        width: 36px;
+        height: 2px;
+        background: var(--c-accent);
+      }
+      .orange .rule {
+        background: #111111;
+      }
+      .rule.full {
+        width: 100%;
+        background: var(--c-border);
+      }
+      .orange .rule.full {
+        background: rgba(17, 17, 17, 0.2);
+      }
+
+      /* Eyebrow / kicker label — orange on dark, dark-ink on orange */
+      .kicker {
+        font-family: var(--f-mono), 'Pretendard Variable';
+        font-size: var(--sz-label);
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--c-accent);
+      }
+      .orange .kicker {
+        color: rgba(17, 17, 17, 0.55);
+      }
+
+      /* Bordered tag */
+      .tag {
+        display: inline-block;
+        font-family: var(--f-mono), 'Pretendard Variable';
+        font-size: var(--sz-label);
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--c-accent);
+        border: 1px solid var(--c-accent);
+        padding: 0.3em 0.8em;
+        line-height: 1;
+      }
+      .orange .tag {
+        color: #111111;
+        border-color: rgba(17, 17, 17, 0.4);
+      }
+
+      /* Image caption */
+      .img-caption {
+        font-family: var(--f-mono), 'Pretendard Variable';
+        font-size: var(--sz-caption);
+        letter-spacing: 0.04em;
+        opacity: 0.5;
+        margin-top: 0.8vh;
+      }
+
+      /* ── Broadside-specific: slide number ─────────────────────────────── */
+      /* The large catalogue number in the top-left corner of orange slides.
+         Inspired by SPACE10 deck: "01" in small mono, top-left, low opacity. */
+      .broadside-num {
+        font-family: var(--f-mono), 'Pretendard Variable';
+        font-size: 1.1vw;
+        font-weight: 500;
+        letter-spacing: 0.1em;
+        color: rgba(17, 17, 17, 0.45); /* dark ink on orange */
+      }
+      /* On dark slides the number uses muted fg */
+      .dark .broadside-num {
+        color: var(--c-fg-3);
+      }
+
+      /* Corner label utility — used for section labels at slide edges */
+      .corner-label {
+        font-family: var(--f-mono), 'Pretendard Variable';
+        font-size: var(--sz-label);
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: rgba(17, 17, 17, 0.4);
+      }
+      .dark .corner-label {
+        color: var(--c-fg-3);
+      }
+
+      /* Orange slide cover: a thin top strip showing the slide number + section name */
+      .broadside-top-chrome {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: auto;
+        padding-bottom: 0;
+      }
+
+      /* ── FADELIST (SPACE10 Before/During/After) ────────────────────────── */
+      .slide--fadelist {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+      .fadelist-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+      }
+      .fadelist-items {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 0;
+        line-height: 0.92;
+      }
+      .fadelist-item {
+        font-family: var(--f-display), 'Pretendard Variable';
+        font-size: 7.5vw;
+        font-weight: 900;
+        letter-spacing: -0.03em;
+        color: #111111;
+        line-height: 1;
+      }
+      .fadelist-item:nth-child(2) {
+        opacity: 0.5;
+      }
+      .fadelist-item:nth-child(3) {
+        opacity: 0.22;
+      }
+      .fadelist-title {
+        font-family: var(--f-display), 'Pretendard Variable';
+        font-size: 10.5vw;
+        font-weight: 900;
+        line-height: 0.9;
+        letter-spacing: -0.04em;
+        color: #111111;
+        align-self: flex-end;
+      }
+
+      /* Stats on orange: dark ink instead of cream */
+      .orange .stat-value {
+        color: #111111;
+      }
+      .orange .stat-label {
+        color: rgba(17, 17, 17, 0.65);
+      }
+      .orange .stat-note {
+        color: rgba(17, 17, 17, 0.4);
+      }
+      .orange .stat-card {
+        border-top-color: rgba(17, 17, 17, 0.22);
+      }
+
+      /* Compare: right panel gets orange fill */
+      .compare-panel.panel-orange {
+        padding-left: calc(var(--pad-x) * 0.55);
+        background: var(--c-accent);
+      }
+      .compare-panel.panel-orange .compare-label {
+        color: rgba(17, 17, 17, 0.55);
+        border-color: rgba(17, 17, 17, 0.22);
+      }
+      .compare-panel.panel-orange .h3 {
+        color: #111111;
+      }
+      .compare-panel.panel-orange .lead {
+        color: rgba(17, 17, 17, 0.7);
+      }
+      .compare-panel.panel-orange .bullet-list li {
+        color: #111111;
+      }
+      .compare-panel.panel-orange .bullet-list li::before {
+        color: rgba(17, 17, 17, 0.45);
+      }
+
+      /* ── CHART ─────────────────────────────────────────────────────────── */
+      .slide--chart .slide-body {
+        display: flex;
+        flex-direction: column;
+        gap: var(--gap-md);
+        min-height: 0;
+      }
+      .chart-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        flex-shrink: 0;
+      }
+      .chart-wrapper {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        min-height: 0;
+      }
+      .bar-track {
+        height: 30vh;
+        display: flex;
+        align-items: flex-end;
+        gap: 4vw;
+        border-left: 1px solid var(--c-border);
+        padding-left: 0.5vw;
+      }
+      .orange .bar-track {
+        border-color: rgba(17, 17, 17, 0.2);
+      }
+      .bar-col {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: flex-end;
+        gap: 1vh;
+        height: 100%;
+      }
+      .bar-fill {
+        width: 100%;
+        background: var(--c-fg-3);
+        transition: height 0.6s var(--ease-enter);
+      }
+      .bar-fill.accent {
+        background: var(--c-accent);
+      }
+      .orange .bar-fill {
+        background: rgba(17, 17, 17, 0.22);
+      }
+      .orange .bar-fill.accent {
+        background: #111111;
+      }
+      .bar-x-label {
+        font-family: var(--f-mono), 'Pretendard Variable';
+        font-size: var(--sz-caption);
+        letter-spacing: 0.1em;
+        color: var(--c-fg-3);
+        white-space: nowrap;
+        text-transform: uppercase;
+      }
+      .orange .bar-x-label {
+        color: rgba(17, 17, 17, 0.45);
+      }
+      .bar-val {
+        font-family: var(--f-body), 'Pretendard Variable';
+        font-size: var(--sz-body);
+        font-weight: 700;
+        color: var(--c-fg-2);
+      }
+      .bar-val.hi {
+        color: var(--c-accent);
+      }
+      .orange .bar-val {
+        color: rgba(17, 17, 17, 0.55);
+      }
+      .orange .bar-val.hi {
+        color: #111111;
+      }
+      .chart-baseline {
+        height: 1px;
+        background: var(--c-border);
+        flex-shrink: 0;
+        margin-top: 1px;
+      }
+      .orange .chart-baseline {
+        background: rgba(17, 17, 17, 0.2);
+      }
+      .chart-source {
+        flex-shrink: 0;
+        font-family: var(--f-mono), 'Pretendard Variable';
+        font-size: var(--sz-caption);
+        color: var(--c-fg-3);
+        letter-spacing: 0.06em;
+        margin-top: var(--gap-sm);
+      }
+      .orange .chart-source {
+        color: rgba(17, 17, 17, 0.4);
+      }
+
+      /* ── DIAGRAM ────────────────────────────────────────────────────────── */
+      .slide--diagram .slide-body {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: var(--gap-lg);
+        min-height: 0;
+      }
+      .flow {
+        display: flex;
+        align-items: stretch;
+        gap: 0;
+      }
+      .flow-step {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: var(--gap-sm);
+        padding-right: calc(var(--pad-x) * 0.35);
+      }
+      .flow-num {
+        font-family: var(--f-display), 'Pretendard Variable';
+        font-size: 5vw;
+        font-weight: 900;
+        line-height: 1;
+        color: var(--c-accent);
+        letter-spacing: -0.03em;
+      }
+      .orange .flow-num {
+        color: rgba(17, 17, 17, 0.2);
+      }
+      .flow-title {
+        font-family: var(--f-heading), 'Pretendard Variable';
+        font-size: var(--sz-h3);
+        font-weight: 700;
+        line-height: 1.15;
+        color: var(--c-fg);
+      }
+      .orange .flow-title {
+        color: #111111;
+      }
+      .flow-desc {
+        font-family: var(--f-body), 'Pretendard Variable';
+        font-size: var(--sz-body);
+        color: var(--c-fg-2);
+        line-height: 1.6;
+        font-weight: 400;
+      }
+      .orange .flow-desc {
+        color: rgba(17, 17, 17, 0.6);
+      }
+      .flow-arrow {
+        display: flex;
+        align-items: flex-start;
+        padding-top: 1.2em;
+        padding-right: calc(var(--pad-x) * 0.35);
+        font-size: 2.2vw;
+        color: var(--c-accent);
+        font-weight: 300;
+        flex-shrink: 0;
+      }
+      .orange .flow-arrow {
+        color: rgba(17, 17, 17, 0.3);
+      }
+      /* ── PIE / DONUT CHART ──────────────────────────────────────────────── */
+      .slide--pie .slide-body {
+        display: flex;
+        flex-direction: column;
+        gap: var(--gap-md);
+        min-height: 0;
+      }
+      .pie-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: calc(var(--pad-x) * 0.7);
+        align-items: center;
+        flex: 1;
+        min-height: 0;
+      }
+      .pie-donut {
+        width: min(28vw, 44vh);
+        height: min(28vw, 44vh);
+        border-radius: 50%;
+        position: relative;
+        flex-shrink: 0;
+        justify-self: center;
+      }
+      .pie-donut::after {
+        content: "";
+        position: absolute;
+        inset: 20%;
+        border-radius: 50%;
+        background: var(--c-bg);
+      }
+      .orange .pie-donut::after {
+        background: var(--c-bg-orange);
+      }
+      .pie-legend {
+        display: flex;
+        flex-direction: column;
+        gap: var(--gap-md);
+      }
+      .pie-item {
+        display: grid;
+        grid-template-columns: 0.8em 1fr auto;
+        gap: 1em;
+        align-items: center;
+      }
+      .pie-swatch {
+        width: 0.8em;
+        height: 0.8em;
+        border-radius: 2px;
+        flex-shrink: 0;
+      }
+      .pie-item-label {
+        font-family: var(--f-body), 'Pretendard Variable';
+        font-size: var(--sz-lead);
+        font-weight: 700;
+        line-height: 1.4;
+      }
+      .pie-item-val {
+        font-family: var(--f-mono), 'Pretendard Variable';
+        font-size: var(--sz-body);
+        font-weight: 500;
+        letter-spacing: 0.06em;
+        color: var(--c-accent);
+      }
+      .orange .pie-item-val {
+        color: #111;
+      }
+      .pie-total {
+        margin-top: var(--gap-sm);
+        padding-top: var(--gap-sm);
+        border-top: 1px solid var(--c-border);
+        font-family: var(--f-mono), 'Pretendard Variable';
+        font-size: var(--sz-label);
+        letter-spacing: 0.1em;
+        color: var(--c-fg-3);
+      }
+
+      /* ── PYRAMID ─────────────────────────────────────────────────────────── */
+      .slide--pyramid .slide-body {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: var(--gap-md);
+        min-height: 0;
+      }
+      .pyramid {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        align-items: center;
+      }
+      .pyr-level {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1.5vh 2.5vw;
+        border-left: 4px solid var(--c-accent);
+        transition: width 0.3s;
+      }
+      .orange .pyr-level {
+        border-left-color: rgba(17, 17, 17, 0.4);
+      }
+      .pyr-level:nth-child(1) {
+        background: color-mix(in srgb, var(--c-accent) 75%, var(--c-bg));
+        width: 36%;
+      }
+      .pyr-level:nth-child(2) {
+        background: color-mix(in srgb, var(--c-accent) 50%, var(--c-bg));
+        width: 52%;
+      }
+      .pyr-level:nth-child(3) {
+        background: color-mix(in srgb, var(--c-accent) 28%, var(--c-bg));
+        width: 68%;
+      }
+      .pyr-level:nth-child(4) {
+        background: color-mix(in srgb, var(--c-accent) 14%, var(--c-bg));
+        width: 84%;
+      }
+      .pyr-level:nth-child(5) {
+        background: color-mix(in srgb, var(--c-accent) 6%, var(--c-bg));
+        width: 100%;
+      }
+      .pyr-name {
+        font-family: var(--f-heading), 'Pretendard Variable';
+        font-size: var(--sz-h3);
+        font-weight: 900;
+        line-height: 1.1;
+        text-transform: lowercase;
+      }
+      .pyr-desc {
+        font-family: var(--f-body), 'Pretendard Variable';
+        font-size: var(--sz-body);
+        color: var(--c-fg-2);
+        text-align: right;
+        max-width: 55%;
+        line-height: 1.4;
+        font-weight: 400;
+      }
+
+      /* ── VERTICAL TIMELINE ───────────────────────────────────────────────── */
+      .slide--vtimeline {
+        grid-template-rows: auto auto 1fr auto;
+      }
+      .vt-hl {
+        font-family: var(--f-heading), 'Pretendard Variable';
+        font-size: var(--sz-h2);
+        font-weight: 900;
+        text-transform: lowercase;
+        letter-spacing: -0.03em;
+        padding-bottom: var(--gap-md);
+        border-bottom: 1px solid var(--c-border);
+      }
+      .vtimeline {
+        display: grid;
+        grid-template-columns: 8em 2px 1fr;
+        gap: 0;
+        min-height: 0;
+        padding-top: var(--gap-md);
+      }
+      .vt-date {
+        font-family: var(--f-mono), 'Pretendard Variable';
+        font-size: var(--sz-caption);
+        letter-spacing: 0.1em;
+        color: var(--c-fg-3);
+        text-align: right;
+        padding: 0 1.5vw 3.5vh 0;
+        line-height: 1.4;
+      }
+      .vt-spine {
+        background: var(--c-border);
+        position: relative;
+      }
+      .vt-spine::before {
+        content: "";
+        position: absolute;
+        top: 0.2em;
+        left: -5px;
+        width: 10px;
+        height: 10px;
+        background: var(--c-accent);
+      }
+      .vt-content {
+        padding: 0 0 3.5vh 1.5vw;
+      }
+      .vt-title {
+        font-family: var(--f-heading), 'Pretendard Variable';
+        font-size: var(--sz-h3);
+        font-weight: 900;
+        margin-bottom: 0.6vh;
+        line-height: 1.1;
+        text-transform: lowercase;
+      }
+      .vt-body {
+        font-family: var(--f-body), 'Pretendard Variable';
+        font-size: var(--sz-body);
+        color: var(--c-fg-2);
+        line-height: 1.65;
+        font-weight: 400;
+      }
+
+      /* ── CYCLE PROCESS ───────────────────────────────────────────────────── */
+      .slide--cycle .slide-body {
+        display: flex;
+        flex-direction: column;
+        gap: var(--gap-md);
+        min-height: 0;
+      }
+      .cycle-grid {
+        display: grid;
+        grid-template-columns: 1fr 3em 1fr;
+        grid-template-rows: 1fr 3em 1fr;
+        gap: var(--gap-sm);
+        flex: 1;
+        min-height: 0;
+        align-items: center;
+      }
+      .cycle-step {
+        display: flex;
+        flex-direction: column;
+        gap: var(--gap-sm);
+        padding: var(--gap-md);
+        border-top: 3px solid var(--c-accent);
+      }
+      .cycle-num {
+        font-family: var(--f-display), 'Pretendard Variable';
+        font-size: 4vw;
+        font-weight: 900;
+        color: var(--c-accent);
+        line-height: 1;
+        letter-spacing: -0.03em;
+        text-transform: lowercase;
+      }
+      .cycle-title {
+        font-family: var(--f-heading), 'Pretendard Variable';
+        font-size: var(--sz-h3);
+        font-weight: 900;
+        line-height: 1.1;
+        text-transform: lowercase;
+      }
+      .cycle-desc {
+        font-family: var(--f-body), 'Pretendard Variable';
+        font-size: var(--sz-body);
+        color: var(--c-fg-2);
+        line-height: 1.6;
+        font-weight: 400;
+      }
+      .cycle-arrow {
+        color: var(--c-fg-3);
+        font-size: 2.2vw;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+    </style>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
+    <style>
+      /* Korean adjustments (design.md · CJK & International Content) */
+      body { word-break: keep-all; }
+      .display, .h1, .h2, .h3, .fadelist-title, .fadelist-item, .quote-text,
+      .vt-hl, .vt-title, .flow-title, .lead, .body { letter-spacing: 0; }
+      .display, .h1, .fadelist-title { line-height: 1.05; }
+      .h2, .quote-text, .fadelist-item { line-height: 1.2; }
+      .lead, .body, .vt-body, .flow-desc, .bullet-list li { line-height: 1.7; }
+    </style>
+</head>
+
+  <body>
+    <div id="deck">
+      <section class="slide slide--cover orange">
+        <div class="broadside-top-chrome">
+          <span class="broadside-num" data-anim="fade-in" data-delay="0">01</span>
+          <span class="corner-label" data-anim="fade-in" data-delay="0">HS1 · AX 프로젝트</span>
+        </div>
+        <div class="cover-body">
+          <h1 class="display" data-anim="fade-up" data-delay="1" style="max-width: 95%">ax 성과 진단</h1>
+          <p class="lead" data-anim="fade-up" data-delay="2" style="opacity: 0.65; max-width: 55%">계약이 끝나도 같은 기준으로 성과를 재게 돕는 KPI 진단 도구</p>
+        </div>
+        <div class="cover-meta" data-anim="fade-in" data-delay="3">
+          <span class="broadside-num">권호용 · HS1</span>
+          <span class="broadside-num">2026.10.21 · 기획 발표</span>
+        </div>
+      </section>
+
+      <section class="slide slide--chapter orange">
+        <div class="broadside-num" data-anim="fade-in" data-delay="0" style="margin-bottom: var(--gap-lg)">02 / 문제</div>
+        <h2 class="h1" data-anim="fade-up" data-delay="1">계약이 끝나면<br />성과의 기준도 사라진다</h2>
+        <p class="lead" data-anim="fade-up" data-delay="2" style="max-width: 50%; margin-top: var(--gap-md); opacity: 0.65">AX 컨설팅은 검수로 끝나지만 성과는 그 뒤 현업에서 나온다.</p>
+      </section>
+
+      <section class="slide slide--statement dark">
+        <header class="slide-chrome">
+          <span class="label muted">문제</span>
+          <span class="label muted">03 / 20</span>
+        </header>
+        <div class="statement-body">
+          <p class="kicker" data-anim="fade-in" data-delay="0">핵심 문제</p>
+          <div class="rule" data-anim="reveal-right" data-delay="1" style="margin: 1.8vh 0"></div>
+          <h2 class="h1 accent" data-anim="fade-up" data-delay="2" style="max-width: 80%">도입 전 값이 없으면<br />성과를 숫자로<br />증명할 수 없다</h2>
+          
+        </div>
+        <footer class="slide-foot">
+          <span class="label muted">AX 성과 진단</span>
+          <span class="label muted">권호용 · HS1</span>
+        </footer>
+      </section>
+
+      <section class="slide slide--fadelist orange">
+        <div class="fadelist-top">
+          <span class="broadside-num" data-anim="fade-in" data-delay="0">04</span>
+          <div class="fadelist-items" data-anim="fade-up" data-delay="1">
+            <span class="fadelist-item">착수</span>
+            <span class="fadelist-item">인계</span>
+            <span class="fadelist-item">계약 후</span>
+          </div>
+        </div>
+        <div class="fadelist-title" data-anim="fade-up" data-delay="2" style="font-size: 8vw">기준은<br />착수 때 정한다</div>
+        <div style="display: flex; justify-content: space-between; align-items: flex-end; padding-top: var(--gap-sm); border-top: 1px solid rgba(17, 17, 17, 0.15)">
+          <span class="broadside-num" style="opacity: 0.4">착수 때 남겨 두지 않은 기준은 계약 뒤에 다시 만들 수 없다</span>
+          <span class="broadside-num" style="opacity: 0.4">04 / 20</span>
+        </div>
+      </section>
+
+      <section class="slide slide--list dark">
+        <header class="slide-chrome">
+          <span class="label muted">문제</span>
+          <span class="label muted">05 / 20</span>
+        </header>
+        <div class="slide-body">
+          <div class="list-head">
+            <p class="kicker" data-anim="fade-in" data-delay="0">원인 세 갈래</p>
+            <h2 class="h2" data-anim="fade-up" data-delay="1">계약 뒤에는<br />왜 성과를<br />못 재나</h2>
+          </div>
+            <ul class="bullet-list" data-anim="fade-up" data-delay="3">
+              <li>정보: 도입 전 값과 측정 기준이 남지 않는다. 이 앱이 다루는 부분이다</li>
+              <li>조직: 계약 뒤 다시 잴 사람이 고객 쪽에 없다. 인계 카드로 정해 둔다</li>
+              <li>사용: 현업이 도구를 쓰지 않는다. 이번 범위에서는 뺐다</li>
+            </ul>
+        </div>
+        <footer class="slide-foot">
+          <span class="label muted">AX 성과 진단</span>
+          <span class="label muted">권호용 · HS1</span>
+        </footer>
+      </section>
+
+      <section class="slide slide--chapter orange">
+        <div class="broadside-num" data-anim="fade-in" data-delay="0" style="margin-bottom: var(--gap-lg)">06 / 해결</div>
+        <h2 class="h1" data-anim="fade-up" data-delay="1">착수 때 재고<br />인계 카드로 남긴다</h2>
+        <p class="lead" data-anim="fade-up" data-delay="2" style="max-width: 50%; margin-top: var(--gap-md); opacity: 0.65">신입 AX 컨설턴트가 과제를 시작할 때 쓰는 KPI 진단 도구</p>
+      </section>
+
+      <section class="slide slide--quote dark">
+        <p class="kicker accent" data-anim="fade-in" data-delay="0" style="margin-bottom: var(--gap-lg)">가치 제안</p>
+        <div class="quote-text" data-anim="fade-up" data-delay="1">"고객 데이터를 올리면 KPI마다 지금 잴 수 있는지와 도입 전 값을 한 번에 확정하고, 계약이 끝나도 고객 오너가 같은 기준으로 다시 잴 수 있게 인계한다."</div>
+        <div class="quote-attr" data-anim="fade-up" data-delay="2">
+          <span class="label accent">AX 성과 진단</span>
+          <span class="label muted">요구서 v0.4 · 3절</span>
+        </div>
+      </section>
+
+      <section class="slide slide--compare dark">
+        <header class="slide-chrome">
+          <span class="label muted">해결</span>
+          <span class="label muted">08 / 20</span>
+        </header>
+        <div class="slide-body">
+          <div class="compare-panel left">
+            <div class="compare-label" data-anim="fade-in" data-delay="0">지금 (추측)</div>
+            <h3 class="h3" data-anim="fade-up" data-delay="1">엑셀에 적고 손으로 계산한다</h3>
+            <p class="lead muted" data-anim="fade-up" data-delay="2">KPI는 회의에서 말로 정하고 산식은 사람마다 다르다.</p>
+            <ul class="bullet-list" data-anim="fade-up" data-delay="3" style="--sz-lead: 1.2vw">
+              <li>고객 CSV 형식이 다르면 손으로 고친다</li>
+              <li>도입 전 값은 최종 보고서 부록에만 남는다</li>
+              <li>계약이 끝나면 아무도 다시 재지 않는다</li>
+            </ul>
+          </div>
+          <div class="compare-panel panel-orange">
+            <div class="compare-label after" data-anim="fade-in" data-delay="0">AX 성과 진단</div>
+            <h3 class="h3" data-anim="fade-up" data-delay="1" style="color: #111">데이터만 올리면 인계까지</h3>
+            <p class="lead" data-anim="fade-up" data-delay="2" style="color: rgba(17, 17, 17, 0.65)">같은 규칙으로 등급과 도입 전 값을 내고 고객에게 남긴다.</p>
+            <ul class="bullet-list" data-anim="fade-up" data-delay="3" style="--sz-lead: 1.2vw">
+              <li>컬럼을 표준 항목 7개에 자동으로 연결</li>
+              <li>KPI별 A/B/C 등급과 사유, 90일 도입 전 값</li>
+              <li>고객 오너에게 넘길 인계 카드(.md)</li>
+            </ul>
+          </div>
+        </div>
+        <footer class="slide-foot">
+          <span class="label muted">AX 성과 진단</span>
+          <span class="label muted">권호용 · HS1</span>
+        </footer>
+      </section>
+
+      <section class="slide slide--diagram orange">
+        <header class="slide-chrome">
+          <span class="broadside-num">09 / 20</span>
+          <span class="corner-label">해결</span>
+        </header>
+        <div class="slide-body">
+          <h2 class="h2" style="color: #111; letter-spacing: -0.02em" data-anim="fade-up" data-delay="0">착수 진단은 네 단계다</h2>
+          <div class="flow" data-anim="fade-up" data-delay="1">
+            <div class="flow-step">
+              <div class="flow-num">01</div>
+              <div class="flow-title">업로드</div>
+              <div class="flow-desc">고객 CSV를 올리면 행 수, 주기, 기간, 결측부터 보여 준다.</div>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-step">
+              <div class="flow-num">02</div>
+              <div class="flow-title">컬럼 연결</div>
+              <div class="flow-desc">컬럼 이름이 달라도 맞는 표준 항목을 골라 준다. 잘못 연결하면 진단이 멈춘다.</div>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-step">
+              <div class="flow-num">03</div>
+              <div class="flow-title">기준일</div>
+              <div class="flow-desc">AX 도입 기준일은 데이터 기간 안에서만 고를 수 있다.</div>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-step">
+              <div class="flow-num">04</div>
+              <div class="flow-title">진단 · 인계</div>
+              <div class="flow-desc">등급과 도입 전 값을 확정하면 인계 카드가 열린다.</div>
+            </div>
+          </div>
+        </div>
+        <footer class="slide-foot" style="border-color: rgba(17, 17, 17, 0.15)">
+          <span class="broadside-num" style="opacity: 0.4">AX 성과 진단</span>
+          <span class="broadside-num" style="opacity: 0.4">권호용 · HS1</span>
+        </footer>
+      </section>
+
+      <section class="slide slide--figure dark">
+        <header class="slide-chrome">
+          <span class="label muted">실제 화면</span>
+          <span class="label muted">10 / 20</span>
+        </header>
+        <div class="slide-body" style="display: flex; flex-direction: column; gap: var(--gap-sm); min-height: 0">
+          <p class="kicker" data-anim="fade-in" data-delay="0">02 · 컬럼 연결</p>
+          <h2 class="h2" data-anim="fade-up" data-delay="1">이름이 달라도 표준 항목에 연결한다</h2>
+          <img src="img/mapping.png" alt="컬럼 연결 화면" data-anim="fade-up" data-delay="2"
+            style="width: 100%; height: 56vh; object-fit: contain; object-position: center center; display: block" />
+          <p class="chart-source" data-anim="fade-in" data-delay="3">E2E 테스트 실행 화면 · 2026-10-21 · 컬럼 이름을 바꾼 HS1 CSV</p>
+        </div>
+        <footer class="slide-foot">
+          <span class="label muted">AX 성과 진단</span>
+          <span class="label muted">권호용 · HS1</span>
+        </footer>
+      </section>
+
+      <section class="slide slide--figure dark">
+        <header class="slide-chrome">
+          <span class="label muted">실제 화면</span>
+          <span class="label muted">11 / 20</span>
+        </header>
+        <div class="slide-body" style="display: flex; flex-direction: column; gap: var(--gap-sm); min-height: 0">
+          <p class="kicker" data-anim="fade-in" data-delay="0">04 · 진단 결과</p>
+          <h2 class="h2" data-anim="fade-up" data-delay="1">KPI마다 등급과 근거를 붙인다</h2>
+          <img src="img/result.png" alt="진단 결과 화면" data-anim="fade-up" data-delay="2"
+            style="width: 100%; height: 56vh; object-fit: contain; object-position: center center; display: block" />
+          <p class="chart-source" data-anim="fade-in" data-delay="3">E2E 테스트 실행 화면 · 2026-10-21 · 기준일 2018-10-21 · KPI 8개 중 5개 표시</p>
+        </div>
+        <footer class="slide-foot">
+          <span class="label muted">AX 성과 진단</span>
+          <span class="label muted">권호용 · HS1</span>
+        </footer>
+      </section>
+
+      <section class="slide slide--figure dark">
+        <header class="slide-chrome">
+          <span class="label muted">실제 화면</span>
+          <span class="label muted">12 / 20</span>
+        </header>
+        <div class="slide-body" style="display: flex; flex-direction: column; gap: var(--gap-sm); min-height: 0">
+          <p class="kicker" data-anim="fade-in" data-delay="0">04 · 인계 카드</p>
+          <h2 class="h2" data-anim="fade-up" data-delay="1">고객 오너가 같은 표를 받는다</h2>
+          <img src="img/handover.png" alt="인계 카드 화면" data-anim="fade-up" data-delay="2"
+            style="width: 100%; height: 56vh; object-fit: contain; object-position: center center; display: block" />
+          <p class="chart-source" data-anim="fade-in" data-delay="3">고객 오너 계정(읽기 전용) 화면 · 인계 카드는 .md로 내려받는다 · E2E 테스트 실행 화면 · 2026-10-21</p>
+        </div>
+        <footer class="slide-foot">
+          <span class="label muted">AX 성과 진단</span>
+          <span class="label muted">권호용 · HS1</span>
+        </footer>
+      </section>
+
+      <section class="slide slide--figure dark">
+        <header class="slide-chrome">
+          <span class="label muted">실제 화면</span>
+          <span class="label muted">13 / 20</span>
+        </header>
+        <div class="slide-body" style="display: flex; flex-direction: column; gap: var(--gap-sm); min-height: 0">
+          <p class="kicker" data-anim="fade-in" data-delay="0">계약 후 점검</p>
+          <h2 class="h2" data-anim="fade-up" data-delay="1">계약 뒤에도 같은 기준으로 다시 잰다</h2>
+          <img src="img/followup.png" alt="계약 후 점검 화면" data-anim="fade-up" data-delay="2"
+            style="width: 100%; height: 56vh; object-fit: contain; object-position: center center; display: block" />
+          <p class="chart-source" data-anim="fade-in" data-delay="3">E2E 테스트 실행 화면 · 2026-10-21 · 새 데이터 oct_nov.csv를 도입 전 값과 비교</p>
+        </div>
+        <footer class="slide-foot">
+          <span class="label muted">AX 성과 진단</span>
+          <span class="label muted">권호용 · HS1</span>
+        </footer>
+      </section>
+
+      <section class="slide slide--list dark">
+        <header class="slide-chrome">
+          <span class="label muted">해결</span>
+          <span class="label muted">14 / 20</span>
+        </header>
+        <div class="slide-body">
+          <div class="list-head">
+            <p class="kicker" data-anim="fade-in" data-delay="0">사용자</p>
+            <h2 class="h2" data-anim="fade-up" data-delay="1">세 사람이<br />같은 숫자를 본다</h2>
+          </div>
+            <ul class="bullet-list" data-anim="fade-up" data-delay="3">
+              <li>신입 AX 컨설턴트: 착수 때 KPI와 도입 전 값을 빨리 정리한다</li>
+              <li>고객 오너: 인계 카드를 받고 계약 뒤에도 같은 기준으로 다시 잰다</li>
+              <li>PM · 시니어: 어떤 데이터와 기준일로 낸 숫자인지 다시 열어 본다</li>
+            </ul>
+        </div>
+        <footer class="slide-foot">
+          <span class="label muted">AX 성과 진단</span>
+          <span class="label muted">권호용 · HS1</span>
+        </footer>
+      </section>
+
+      <section class="slide slide--chart dark">
+        <header class="slide-chrome">
+          <span class="label muted">근거</span>
+          <span class="label muted">15 / 20</span>
+        </header>
+        <div class="slide-body">
+          <div class="chart-header">
+            <h2 class="h2" data-anim="fade-up" data-delay="0">8개 중 5개는 지금 잴 수 있다</h2>
+            <span class="caption muted" data-anim="fade-in" data-delay="1">KPI 수 · 기준일 2018-10-21</span>
+          </div>
+          <div class="chart-wrapper" data-anim="fade-up" data-delay="2">
+            <div class="bar-track">
+              <div class="bar-col">
+                <span class="bar-val hi">5</span>
+                <div class="bar-fill accent" style="height: 28.0vh"></div>
+                <span class="bar-x-label">A · 바로 측정</span>
+              </div>
+              <div class="bar-col">
+                <span class="bar-val">2</span>
+                <div class="bar-fill" style="height: 11.2vh"></div>
+                <span class="bar-x-label">B · 가공·외부 기준</span>
+              </div>
+              <div class="bar-col">
+                <span class="bar-val">1</span>
+                <div class="bar-fill" style="height: 5.6vh"></div>
+                <span class="bar-x-label">C · 데이터 없음</span>
+              </div>
+            </div>
+            <div class="chart-baseline"></div>
+          </div>
+          <p class="chart-source" data-anim="fade-in" data-delay="3">출처: HS1 가공 데이터 35,040행 (15분, 2018-01-01 ~ 12-31) · 2026-10-19 실행</p>
+        </div>
+        <footer class="slide-foot">
+          <span class="label muted">AX 성과 진단</span>
+          <span class="label muted">권호용 · HS1</span>
+        </footer>
+      </section>
+
+      <section class="slide slide--stats orange">
+        <header class="slide-chrome">
+          <span class="broadside-num">16 / 20</span>
+          <span class="corner-label">성공 기준</span>
+        </header>
+        <div class="slide-body">
+          
+          <div class="stats-grid" data-anim="fade-up" data-delay="1">
+            <div class="stat-card">
+              <div class="stat-value" data-anim="scale-in" data-delay="1">88%</div>
+              <div class="stat-label body">KR1 도입 전 값을 확정한 KPI 비율 7/8<br />목표 80% 이상, 달성</div>
+              <div class="stat-note">HS1 실행 · 2026-10-19</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" data-anim="scale-in" data-delay="2">63%</div>
+              <div class="stat-label body">KR2 인계 전에 손볼 것이 없는 KPI 5/8<br />목표 80% 이상, 미달</div>
+              <div class="stat-note">남은 B·C는 산식 검증 · 생산량 데이터</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" data-anim="scale-in" data-delay="3">3일</div>
+              <div class="stat-label body">KR3 데이터를 받고 인계 카드까지 걸리는 시간<br />지금 수작업 2주, 목표 3일 이내</div>
+              <div class="stat-note">2주는 본인 추정 · 확인 필요</div>
+            </div>
+          </div>
+        </div>
+        <footer class="slide-foot" style="border-color: rgba(17, 17, 17, 0.15)">
+          <span class="broadside-num" style="opacity: 0.4">AX 성과 진단</span>
+          <span class="broadside-num" style="opacity: 0.4">권호용 · HS1</span>
+        </footer>
+      </section>
+
+      <section class="slide slide--vtimeline dark">
+        <header class="slide-chrome">
+          <span class="label muted">계획</span>
+          <span class="label muted">17 / 20</span>
+        </header>
+        <div class="vt-hl" data-anim="fade-up" data-delay="0">여기까지 왔다</div>
+        <div class="vtimeline" data-anim="fade-up" data-delay="1">
+          <div class="vt-date">단계 1–2</div>
+          <div class="vt-spine"></div>
+          <div class="vt-content">
+            <div class="vt-title">컬럼 연결 · 기준일 검증</div>
+            <div class="vt-body">이름만 다른 CSV도 같은 등급이 나온다. 기간 밖 기준일로는 진단하지 않는다.</div>
+          </div>
+          <div class="vt-date">단계 3</div>
+          <div class="vt-spine"></div>
+          <div class="vt-content">
+            <div class="vt-title">진단 기록 · 과제 · 지표 카탈로그</div>
+            <div class="vt-body">새로고침해도 진단 기록에서 같은 숫자를 다시 연다.</div>
+          </div>
+          <div class="vt-date">단계 4–5</div>
+          <div class="vt-spine"></div>
+          <div class="vt-content">
+            <div class="vt-title">외부 기준값 · 고객 오너 · 계약 후 점검</div>
+            <div class="vt-body">고객 오너가 직접 들어와 새 데이터를 도입 전 값과 비교한다.</div>
+          </div>
+          <div class="vt-date">2026.10.21</div>
+          <div class="vt-spine"></div>
+          <div class="vt-content">
+            <div class="vt-title">배포</div>
+            <div class="vt-body">Supabase DB와 Vercel에 올렸고 수용 기준 8개를 모두 통과했다.</div>
+          </div>
+        </div>
+        <footer class="slide-foot">
+          <span class="label muted">AX 성과 진단</span>
+          <span class="label muted">권호용 · HS1</span>
+        </footer>
+      </section>
+
+      <section class="slide slide--list dark">
+        <header class="slide-chrome">
+          <span class="label muted">계획</span>
+          <span class="label muted">18 / 20</span>
+        </header>
+        <div class="slide-body">
+          <div class="list-head">
+            <p class="kicker" data-anim="fade-in" data-delay="0">범위</p>
+            <h2 class="h2" data-anim="fade-up" data-delay="1">하지 않을 것을<br />먼저 정했다</h2>
+          </div>
+            <ul class="bullet-list" data-anim="fade-up" data-delay="3">
+              <li>누가 책임질지 정하기: 조직과 계약의 문제라 범위 밖이다</li>
+              <li>AX 효과를 숫자로 주장하기: 이 데이터에는 실제 AX 개입이 없어서 도입 전 값만 확정한다</li>
+              <li>현업 활용률 추적: 다른 해결책에서 다룬다</li>
+            </ul>
+        </div>
+        <footer class="slide-foot">
+          <span class="label muted">AX 성과 진단</span>
+          <span class="label muted">권호용 · HS1</span>
+        </footer>
+      </section>
+
+      <section class="slide slide--statement dark">
+        <header class="slide-chrome">
+          <span class="label muted">계획</span>
+          <span class="label muted">19 / 20</span>
+        </header>
+        <div class="statement-body">
+          <p class="kicker" data-anim="fade-in" data-delay="0">남은 질문</p>
+          <div class="rule" data-anim="reveal-right" data-delay="1" style="margin: 1.8vh 0"></div>
+          <h2 class="h2 accent" data-anim="fade-up" data-delay="2" style="max-width: 80%">최근 끝난 AX 과제 보고서에 KPI 도입 전 값이 숫자로 있었나?</h2>
+          <p class="lead muted" data-anim="fade-up" data-delay="3" style="max-width: 70%; margin-top: var(--gap-md)">이번 주 현직 컨설턴트와 커피챗에서 확인한다. 없었다면 이 앱이 필요하다는 근거가 된다. 있었다면 인계 카드의 고객 오너 칸이 더 중요해진다.</p>
+        </div>
+        <footer class="slide-foot">
+          <span class="label muted">AX 성과 진단</span>
+          <span class="label muted">권호용 · HS1</span>
+        </footer>
+      </section>
+
+      <section class="slide slide--end orange">
+        <div class="broadside-top-chrome">
+          <span class="broadside-num" data-anim="fade-in" data-delay="0">20</span>
+          <span class="corner-label" data-anim="fade-in" data-delay="0">End</span>
+        </div>
+        <h1 class="display" data-anim="fade-up" data-delay="1" style="color: #111; max-width: 80%">질문<br />주세요.</h1>
+        <div style="display: flex; flex-direction: column; gap: var(--gap-sm)" data-anim="fade-up" data-delay="2">
+          <p class="lead" style="color: rgba(17, 17, 17, 0.65); max-width: 45%">hs1-ax-kpi.vercel.app · 팀 HS1</p>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: auto; padding-top: var(--gap-sm); border-top: 1px solid rgba(17, 17, 17, 0.15)">
+          <span class="broadside-num" style="opacity: 0.4">권호용 · HS1</span>
+          <span class="broadside-num" style="opacity: 0.4">2026.10.21</span>
+        </div>
+      </section>
+    </div>
+    <!-- /#deck -->
+
+    <nav id="nav-dots" aria-label="Slide navigation"></nav>
+    <div id="slide-counter"></div>
+
+    <script>
+      (function () {
+        const deck = document.getElementById("deck");
+        const dotsNav = document.getElementById("nav-dots");
+        const counter = document.getElementById("slide-counter");
+        const slides = Array.from(deck.querySelectorAll(".slide"));
+        const total = slides.length;
+        let current = 0;
+        let isAnimating = false;
+
+        // Size the deck to fit all slides side by side
+        deck.style.width = "calc(" + total + " * 100vw)";
+
+        // Build navigation dots dynamically from slide count
+        slides.forEach(function (_, i) {
+          const dot = document.createElement("button");
+          dot.className = "nav-dot";
+          dot.setAttribute("aria-label", "Slide " + (i + 1));
+          dot.addEventListener("click", function () {
+            goTo(i);
+          });
+          dotsNav.appendChild(dot);
+        });
+
+        function pad(n) {
+          return String(n).padStart(2, "0");
+        }
+
+        function goTo(index) {
+          if (isAnimating) return;
+          if (index < 0 || index >= total) return;
+          if (
+            index === current &&
+            slides[current].classList.contains("is-active")
+          )
+            return;
+
+          isAnimating = true;
+          slides[current].classList.remove("is-active");
+
+          current = index;
+          const slide = slides[current];
+
+          // Reset animations so re-visiting a slide re-plays them
+          slide.querySelectorAll("[data-anim]").forEach(function (el) {
+            el.style.animation = "none";
+            void el.offsetHeight; // force reflow to clear animation state
+            el.style.animation = "";
+          });
+
+          slide.classList.add("is-active");
+          deck.style.transform = "translateX(calc(-" + current + " * 100vw))";
+
+          // Update dots
+          dotsNav.querySelectorAll(".nav-dot").forEach(function (d, i) {
+            d.classList.toggle("is-active", i === current);
+          });
+
+          // Update counter
+          counter.textContent = pad(current + 1) + " / " + pad(total);
+
+          setTimeout(function () {
+            isAnimating = false;
+          }, 900);
+        }
+
+        // Keyboard navigation — arrows, space, Home/End
+        document.addEventListener("keydown", function (e) {
+          if (
+            e.key === "ArrowRight" ||
+            e.key === " " ||
+            e.key === "ArrowDown"
+          ) {
+            e.preventDefault();
+            goTo(current + 1);
+          }
+          if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+            e.preventDefault();
+            goTo(current - 1);
+          }
+          if (e.key === "Home") goTo(0);
+          if (e.key === "End") goTo(total - 1);
+        });
+
+        // Touch swipe — 40px threshold
+        var touchStartX = 0;
+        document.addEventListener(
+          "touchstart",
+          function (e) {
+            touchStartX = e.touches[0].clientX;
+          },
+          { passive: true },
+        );
+        document.addEventListener(
+          "touchend",
+          function (e) {
+            var dx = e.changedTouches[0].clientX - touchStartX;
+            if (Math.abs(dx) > 40) goTo(current + (dx < 0 ? 1 : -1));
+          },
+          { passive: true },
+        );
+
+        // Mouse wheel — 1000ms lock prevents double-firing
+        var wheelLocked = false;
+        document.addEventListener(
+          "wheel",
+          function (e) {
+            if (wheelLocked) return;
+            var primary =
+              Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+            goTo(current + (primary > 0 ? 1 : -1));
+            wheelLocked = true;
+            setTimeout(function () {
+              wheelLocked = false;
+            }, 1000);
+          },
+          { passive: true },
+        );
+
+        // Kick off on slide 1
+        goTo(0);
+      })();
+    </script>
+  </body>
+</html>
